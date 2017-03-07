@@ -1,0 +1,1 @@
+rsync -avz --delete --partial --exclude=".git/" -e "ssh -i /Users/aguerra/Dropbox/dutoVizNew.pem" *.html *.js *.txt ubuntu@johnguerra.co:/var/www/dumpaWords
