@@ -6,12 +6,13 @@
 </head>
 <body>
 	<h1>Dumpawords</h1>
-	<label for="docSlider">Documento</label>
+	<label for="docSlider">Documento: <span id="docValue"></span></label><br>
 	<input id="docSlider" type="range"
 	min=0
 	max=10000
 	value=0/>
 	<br>
+	<input type="checkbox" id="checkAll"><label for="checkAll">Show all</label>
 
 	<div id="chart"></div>
 
@@ -38,7 +39,7 @@
 		var fill = d3.scale.category20();
 		var size =d3.scale.pow().exponent(0.5)
 			// var size =d3.scale.linear()
-			.range([6, window.innerWidth<797? 55 : 75]);
+			.range([6, window.innerWidth<797? 35 : 45]);
 			// var fmt = main.co_locale.numberFormat("n");
 			var fmt = function (d) { return d; };
 
@@ -48,7 +49,11 @@
 				// function (err, data) {
 				//   if (err) throw err;
 
-		function redraw(data) {
+		function redraw(data, docNumber) {
+
+			var docNumber = d3.select("#checkAll").property("checked") ?
+				undefined:
+				+d3.select("#docSlider").property("value");
 
 			// d3.select("#typeCount")
 			// 	.on("change", function () { redraw(); });
@@ -72,10 +77,21 @@
 			}
 
 			var dCounts = {};
-			data.forEach(function (d) {
-				d["Sentenças"].split(" ").forEach(countAttr(1));
+			if (docNumber !== undefined) {
+				data.filter(function (d) {
+					return d.numero===docNumber;
+				})
+					.forEach(function (d) {
+						d["post_content"].split(" ").forEach(countAttr(1));
 
-			})
+					})
+			} else {
+				//compute for all documents
+				data.forEach(function (d) {
+					d["post_content"].split(" ").forEach(countAttr(1));
+				});
+
+			}
 
 			size.domain(d3.extent(d3.values(dCounts), function (d) { return d.count; }));
 
@@ -145,12 +161,36 @@
 
 
     function updateFromGSheet(data) {
-      // var procData = preProcess(data);
+      data.forEach(function (d) {
+      	d.numero = +d.numero;
+      });
+			d3.select("#docSlider")
+				.property("min", d3.min(data, function (d) { return d.numero; }))
+				.property("value", d3.min(data, function (d) { return d.numero; }))
+				.property("max", d3.max(data, function (d) { return d.numero; }))
+
       d3.csv("my_stop_words.txt", function (err, words) {
       	stopWords= {};
       	words.forEach(function (w) {
       		stopWords[w.words.toUpperCase().trim()]={};
+      	});
+
+
+      	d3.select("#checkAll").on("click", function () {
+      		redraw(data);
       	})
+      	var docNumber = +d3.select("#docSlider")
+      		.on("input", function (d) {
+      			d3.select("#docValue").text(d3.select("#docSlider").property("value"));
+      		})
+      		.on("change", function (d) {
+      			var docNumber = +d3.select("#docSlider").property("value");
+
+      			redraw(data);
+      		})
+
+      		.property("value");
+
       	redraw(data);
       })
 
