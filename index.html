@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+</head>
+<body>
+	<h1>Dumpawords</h1>
+	<label for="docSlider">Documento</label>
+	<input id="docSlider" type="range"
+	min=0
+	max=10000
+	value=0/>
+	<br>
+
+	<div id="chart"></div>
+
+	<script type="text/javascript" src="d3.js" charset="utf-8"></script>
+	<script type="text/javascript" src="d3.layout.cloud.js" charset="utf-8"></script>
+
+  <script type="text/javascript" src="./tabletop.js"></script>
+  <script>
+  	//https://docs.google.com/spreadsheets/d/1A2T9udUOhYOy2lqVImkChdUMF-YbYAkAW_G7MBeeenc/edit?usp=sharing
+    var urlHtml = "1A2T9udUOhYOy2lqVImkChdUMF-YbYAkAW_G7MBeeenc";
+    var container = d3.select("#projects");
+    var stopWords = {};
+
+		var margin = {top: 20, right: 20, bottom: 80, left: 40},
+		width = 960 - margin.left - margin.right,
+		height = 960 - margin.top - margin.bottom;
+
+		var svg = d3.select("#chart").append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+		.append("g")
+		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+		var fill = d3.scale.category20();
+		var size =d3.scale.pow().exponent(0.5)
+			// var size =d3.scale.linear()
+			.range([6, window.innerWidth<797? 55 : 75]);
+			// var fmt = main.co_locale.numberFormat("n");
+			var fmt = function (d) { return d; };
+
+
+			// d3.tsv("ViPhOG1644.faa.muscle.hmm.out.tbl.taxid.taxonomy.txt",
+			// d3.tsv("ViPhOG9465.faa.muscle.hmm.out.tbl.taxid.taxonomy.txt",
+				// function (err, data) {
+				//   if (err) throw err;
+
+		function redraw(data) {
+
+			// d3.select("#typeCount")
+			// 	.on("change", function () { redraw(); });
+
+			console.log("redraw");
+			// var typeCount = d3.select("#typeCount").property("value");
+
+			function countAttr(score) {
+				return function(attr) {
+					if(attr.toUpperCase().trim() in stopWords || attr.length>20) {
+						return;
+					}
+					if (!(attr in dCounts)) {
+						dCounts[attr] = {
+							text: attr,
+							count: 0
+						};
+					}
+					dCounts[attr].count +=score;
+				}
+			}
+
+			var dCounts = {};
+			data.forEach(function (d) {
+				d["Sentenças"].split(" ").forEach(countAttr(1));
+
+			})
+
+			size.domain(d3.extent(d3.values(dCounts), function (d) { return d.count; }));
+
+			d3.layout.cloud().size([width/2, height/2])
+			.words(d3.values(dCounts), function (d) { return d.text; })
+			.padding(1)
+				// .rotate(function() { return ~~(Math.random() * 2) * 90; })
+				.rotate(0)
+				.font("Impact")
+				.fontSize(function(d) { return size(d.count); })
+				.on("end", draw)
+				.start();
+		}
+
+		function draw(mData) {
+			data = mData;
+			// if (isPrimary) {
+			//     wordList.update(data);
+			// }
+			var text = svg.selectAll("text")
+			.data(data, function (d) { return d.text; });
+
+
+			var textEnter = text.enter().append("text")
+			.attr("class", "word");
+					// .style("font-size", size.range()[0] + "px");
+
+					text
+					.attr("data-toggle", "tooltip")
+					.attr("title", function(d) { return d.text + " con " + fmt(d.count) + " interacciones"; })
+					.attr("text-anchor", "middle")
+					.style("font-family", "Impact")
+					// .on("click", onClickWord)
+					.text(function(d) { return d.text; })
+					// .each(function () {
+					//     $(this).tooltip({"container": "body",
+					//     "placement": "bottom"});
+					// })
+					.style("fill", function(d, i) { return fill(i); })
+					// .style("font-size", function(d) { return size(d.count) + "px"; })
+					// .attr("transform", function(d) {
+					//     return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+					// })
+
+					;
+
+					text.transition().duration(1000)
+					.attr("transform", function(d) {
+						return "translate(" + [d.x + width/2, d.y + height/2] + ")rotate(" + d.rotate + ")";
+					})
+					.style("font-size", function(d) { return size(d.count) + "px"; });
+
+			// text.each(function () {
+			//         $(this).tooltip("destroy");
+			//         $(this).tooltip({"container": "body",
+			//         "placement": "bottom"}); });
+
+
+			text.exit()
+			.transition()
+			.duration(500)
+			.style("opacity", 0)
+			.remove();
+
+			// $(".word").tooltip();
+		}
+
+
+    function updateFromGSheet(data) {
+      // var procData = preProcess(data);
+      d3.csv("my_stop_words.txt", function (err, words) {
+      	stopWords= {};
+      	words.forEach(function (w) {
+      		stopWords[w.words.toUpperCase().trim()]={};
+      	})
+      	redraw(data);
+      })
+
+    }
+
+    function init() {
+      Tabletop.init( { key: urlHtml,
+                       callback: updateFromGSheet,
+                       simpleSheet: true } )
+    }
+
+    // Update from csv
+    //- d3.csv("projects.csv", function (error, data) {
+    //-   if (error) throw error;
+    //-   var procData = preProcess(data);
+    //-   update(procData);
+    //- });
+
+    // Update from googleSheets
+    window.onload = function() { init() };
+    d3.select("table").attr("class", "table");
+
+
+
+  </script>
+
+
+</body>
+</html>
+
+
